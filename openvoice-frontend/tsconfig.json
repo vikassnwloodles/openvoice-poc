@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "jsx": "react-jsx",         // or "react" for older React versions
+
     "target": "ES2020",
     "useDefineForClassFields": true,
     "module": "ESNext",
