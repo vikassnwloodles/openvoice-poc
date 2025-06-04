@@ -27,7 +27,6 @@ def tonecolor(ref_speaker, text, audio_speed, language):
     actual_speaker_key = language
     speaker_id_to_use = speaker_ids[actual_speaker_key]
 
-    # Format the speaker key for loading the .pth file (e.g., 'en-au')
     formatted_speaker_key_for_file = actual_speaker_key.lower().replace('_', '-')
     
     source_se_path = f'checkpoints_v2/base_speakers/ses/{formatted_speaker_key_for_file}.pth'

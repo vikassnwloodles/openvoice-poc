@@ -38,7 +38,6 @@ class Clone(APIView):
             cloned_audio_path = None
 
             try:
-                # Save uploaded audio to temporary file
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
                     for chunk in ref_audio_file.chunks():
                         tmp_file.write(chunk)
@@ -47,7 +46,6 @@ class Clone(APIView):
 
                 speed = float(speed)
 
-                # Process audio cloning
                 cloned_audio_path, cloned_audio_filename = tonecolor(
                     ref_speaker=ref_audio_path,
                     text=text,
@@ -60,7 +58,6 @@ class Clone(APIView):
                         "error": "Cloned audio file not found or path was not returned."
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-                # Read the audio file and create response
                 try:
                     with open(cloned_audio_path, 'rb') as audio_file:
                         audio_data = audio_file.read()
@@ -70,7 +67,6 @@ class Clone(APIView):
                             "error": "Cloned audio file is empty."
                         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-                    # Create HttpResponse with proper headers for audio streaming
                     response = HttpResponse(
                         audio_data,
                         content_type='audio/wav'
@@ -100,7 +96,6 @@ class Clone(APIView):
                     "error": f"Failed to clone audio: {str(e)}"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             finally:
-                # Cleanup temporary files
                 if tmp_audio_file_to_delete and os.path.exists(tmp_audio_file_to_delete):
                     try:
                         os.remove(tmp_audio_file_to_delete)
@@ -108,7 +103,6 @@ class Clone(APIView):
                     except Exception as e:
                         logger.warning(f"Failed to cleanup temp file {tmp_audio_file_to_delete}: {e}")
                 
-                # Cleanup cloned audio file after sending (optional)
                 if cloned_audio_path and os.path.exists(cloned_audio_path):
                     try:
                         os.remove(cloned_audio_path)

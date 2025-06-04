@@ -6,12 +6,33 @@ function App() {
     const [text, setText] = useState<string>('');
     const [speed, setSpeed] = useState<number>(1.0);
     const [language, setLanguage] = useState<string>('en');
+    const [accent, setAccent] = useState<string>('american');
     const [dragActive, setDragActive] = useState(false);
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [success, setSuccess] = useState<string>('');
+    const [clonedAudioUrl, setClonedAudioUrl] = useState<string>('');
+    const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const dragCounter = useRef(0);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
+    const getLanguageCode = () => {
+        if (language === 'en') {
+            switch (accent) {
+                case 'american':
+                    return 'EN-US';
+                case 'british':
+                    return 'EN-BR';
+                case 'indian':
+                    return 'EN-INDIA';
+                case 'australian':
+                    return 'EN-AU';
+                default:
+                    return 'EN-US';
+            }
+        }
+        return language;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,13 +45,14 @@ function App() {
         setLoading(true);
         setError('');
         setSuccess('');
+        setClonedAudioUrl(''); 
 
         try {
             const formData = new FormData();
 
             formData.append('text', text);
             formData.append('speed', speed.toString());
-            formData.append('language', language);
+            formData.append('language', getLanguageCode());
 
             if (file) {
                 formData.append('audio', file);
@@ -39,11 +61,17 @@ function App() {
             const response = await axios.post('http://localhost:8000/api/clone/', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
-                }
+                },
+                responseType: 'blob' 
             });
 
-            setSuccess('Request processed successfully!');
-            console.log('Response:', response.data);
+         
+            const audioBlob = new Blob([response.data], { type: 'audio/wav' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            setClonedAudioUrl(audioUrl);
+            
+            setSuccess('Audio cloned successfully!');
+            console.log('Response received');
 
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || err.message || 'An error occurred while processing your request';
@@ -53,6 +81,40 @@ function App() {
             setLoading(false);
         }
     };
+
+    const togglePlayback = () => {
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    const handleAudioEnded = () => {
+        setIsPlaying(false);
+    };
+
+    const downloadAudio = () => {
+        if (clonedAudioUrl) {
+            const link = document.createElement('a');
+            link.href = clonedAudioUrl;
+            link.download = 'cloned_audio.wav';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    React.useEffect(() => {
+        return () => {
+            if (clonedAudioUrl) {
+                URL.revokeObjectURL(clonedAudioUrl);
+            }
+        };
+    }, [clonedAudioUrl]);
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
@@ -171,7 +233,6 @@ function App() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Audio File Upload Section */}
                     <div className="bg-white rounded-lg shadow-md p-4">
                         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
                             <svg className="w-5 h-5 mr-2 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,9 +243,9 @@ function App() {
 
                         <div
                             className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 ${dragActive
-                                    ? 'border-indigo-500 bg-indigo-50'
-                                    : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
-                                }`}
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+                            }`}
                             onDragEnter={handleDragEnter}
                             onDragLeave={handleDragLeave}
                             onDragOver={handleDrag}
@@ -201,7 +262,7 @@ function App() {
 
                             {!file ? (
                                 <div className="space-y-3">
-                                    <div className="mx-auto w-12 h-12 bg-indigo-100 rounded-full flex items-center ++justify-center">
+                                    <div className="mx-auto w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
                                         <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                                         </svg>
@@ -259,7 +320,6 @@ function App() {
                         </div>
                     </div>
 
-                    {/* Text Input Section */}
                     <div className="bg-white rounded-lg shadow-md p-4">
                         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
                             <svg className="w-5 h-5 mr-2 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,7 +341,6 @@ function App() {
                         </p>
                     </div>
 
-                    {/* Settings Section */}
                     <div className="bg-white rounded-lg shadow-md p-4">
                         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
                             <svg className="w-5 h-5 mr-2 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,8 +350,7 @@ function App() {
                             Settings
                         </h2>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Speed Control */}
+                        <div className="grid grid-cols-1 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Speed: {speed}x
@@ -313,33 +371,69 @@ function App() {
                                 </div>
                             </div>
 
-                            {/* Language Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Language
-                                </label>
-                                <select
-                                    value={language}
-                                    onChange={(e) => setLanguage(e.target.value)}
-                                    disabled={loading}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 text-gray-700 bg-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <option value="en">English</option>
-                                    <option value="es">Spanish</option>
-                                    <option value="fr">French</option>
-                                    <option value="de">German</option>
-                                    <option value="it">Italian</option>
-                                    <option value="pt">Portuguese</option>
-                                    <option value="ru">Russian</option>
-                                    <option value="zh">Chinese</option>
-                                    <option value="ja">Japanese</option>
-                                    <option value="ko">Korean</option>
-                                </select>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Language
+                                    </label>
+                                    <select
+                                        value={language}
+                                        onChange={(e) => {
+                                            setLanguage(e.target.value);
+                                            if (e.target.value === 'en') {
+                                                setAccent('american');
+                                            }
+                                        }}
+                                        disabled={loading}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 text-gray-700 bg-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <option value="en">English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                        <option value="it">Italian</option>
+                                        <option value="pt">Portuguese</option>
+                                        <option value="ru">Russian</option>
+                                        <option value="zh">Chinese</option>
+                                        <option value="ja">Japanese</option>
+                                        <option value="ko">Korean</option>
+                                    </select>
+                                </div>
+
+                                {language === 'en' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            English Accent
+                                        </label>
+                                        <select
+                                            value={accent}
+                                            onChange={(e) => setAccent(e.target.value)}
+                                            disabled={loading}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 text-gray-700 bg-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="american">American</option>
+                                            <option value="british">British</option>
+                                            <option value="indian">Indian</option>
+                                            <option value="australian">Australian</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center space-x-2">
+                                    <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-sm text-gray-600">Language Code:</span>
+                                    <code className="text-sm font-mono bg-white px-2 py-1 rounded border text-indigo-600">
+                                        {getLanguageCode()}
+                                    </code>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Status Messages */}
                     {(error || success) && (
                         <div className="space-y-3">
                             {error && (
@@ -365,7 +459,66 @@ function App() {
                         </div>
                     )}
 
-                    {/* Submit Button */}
+                    {clonedAudioUrl && (
+                        <div className="bg-white rounded-lg shadow-md p-4">
+                            <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                                <svg className="w-5 h-5 mr-2 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293H15M9 10v4a2 2 0 002 2h2a2 2 0 002-2v-4M9 10V9a2 2 0 012-2h2a2 2 0 012 2v1" />
+                                </svg>
+                                Cloned Audio
+                            </h2>
+                            
+                            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+                                <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+                                    <div className="flex items-center space-x-3">
+                                        <button
+                                            onClick={togglePlayback}
+                                            type='button'
+                                            className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                        >
+                                            {isPlaying ? (
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                        <div className="text-left">
+                                            <p className="font-medium text-gray-800">Cloned Audio Ready</p>
+                                            <p className="text-sm text-gray-600">
+                                                {isPlaying ? 'Playing...' : 'Click to play'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <button
+                                        type='button'
+                                        onClick={downloadAudio}
+                                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span>Download</span>
+                                    </button>
+                                </div>
+                                
+                                <audio
+                                    ref={audioRef}
+                                    src={clonedAudioUrl}
+                                    onEnded={handleAudioEnded}
+                                    onPlay={() => setIsPlaying(true)}
+                                    onPause={() => setIsPlaying(false)}
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     <div className="text-center">
                         <button
                             type="submit"
